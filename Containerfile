@@ -37,41 +37,52 @@ ENV EML_DIR=/data/eml
 ENV ATTACHMENTS_DIR=/data/attachments
 
 # Setup for Unraid compatibility
-ENV PUID=99
-ENV PGID=100
+ARG PUID=99
+ARG PGID=100
+ENV PUID=${PUID}
+ENV PGID=${PGID}
 ENV UMASK=000
 
 # Run as non-root user with configurable UID/GID
-RUN groupadd -g ${PGID} appgroup && \
-    useradd -u ${PUID} -g appgroup -m appuser && \
+RUN groupadd -g ${PUID} appgroup && \
+    useradd -u ${PGID} -g appgroup -m appuser && \
+    mkdir -p /etc/cont-init.d && \
     chown -R appuser:appgroup /app /data
 
-# Create s6 script for user modification
-RUN mkdir -p /etc/cont-init.d
-COPY <<'EOF' /etc/cont-init.d/10-adduser
-#!/bin/bash
-PUID=${PUID:-99}
-PGID=${PGID:-100}
-UMASK=${UMASK:-000}
+# Create entrypoint script for user modification
+RUN echo '#!/bin/sh\n\
+PUID=${PUID:-99}\n\
+PGID=${PGID:-100}\n\
+UMASK=${UMASK:-000}\n\
+\n\
+if [ ! $(getent group appgroup) ]; then\n\
+    groupadd -g $PGID appgroup\n\
+fi\n\
+\n\
+if [ ! $(getent passwd appuser) ]; then\n\
+    useradd -u $PUID -g appgroup -m appuser\n\
+fi\n\
+\n\
+echo "-----------------------------"\n\
+echo "GID/UID"\n\
+echo "-----------------------------"\n\
+echo "User uid:    $(id -u appuser)"\n\
+echo "User gid:    $(id -g appgroup)"\n\
+echo "-----------------------------"\n\
+\n\
+chown -R appuser:appgroup /app /data\n\
+umask $UMASK\n\
+\n\
+exec su-exec appuser python /app/app.py\n\
+' > /usr/local/bin/entrypoint.sh && \
+    chmod +x /usr/local/bin/entrypoint.sh
 
-groupmod -o -g "$PGID" appgroup
-usermod -o -u "$PUID" appuser
+# Install su-exec for dropping privileges
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends su-exec && \
+    rm -rf /var/lib/apt/lists/*
 
-echo "
------------------------------
-GID/UID
------------------------------
-User uid:    $(id -u appuser)
-User gid:    $(id -g appuser)
------------------------------
-"
-chown -R appuser:appgroup /app /data
-umask $UMASK
-EOF
-
-RUN chmod +x /etc/cont-init.d/10-adduser
-
-USER appuser
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Run script
 CMD ["python", "app.py"]
