@@ -42,7 +42,7 @@ def sanitize_filename(text, max_length=64):
     return sanitized
 
 # Load config
-def load_config(path="config.yaml"):
+def load_config(path="/app/configs/config.yaml"):
     logging.info(f"Loading config from {path}...")
     with open(path, 'r') as f:
         config = yaml.safe_load(f)
