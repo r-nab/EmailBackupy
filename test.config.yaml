@@ -1,0 +1,25 @@
+# Global PDF password list for unlocking
+pdf_passwords:
+  - "test_password1"
+  - "test_password2"
+
+# Schedule: run every X minutes
+schedule_minutes: 5
+
+# Notification settings
+notifications_enabled: true  # Set to false to disable all notifications
+notify_url: "https://your-webhook-endpoint.com/notify"  # Webhook URL for notifications
+
+# List of accounts to fetch email from
+accounts:
+  - imap:
+      host: "imap.example.com"
+      port: 993
+      user: "user@example.com"
+      password: "your_password_here"
+    search_last_days: 30
+    filter_from:
+      - "@example.com"
+      - "@bank.com"
+    save_eml_to: "./emails"
+    save_attachments_to: "./attachments"

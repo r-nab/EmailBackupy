@@ -1,0 +1,4 @@
+PyYAML
+schedule
+requests
+pikepdf
