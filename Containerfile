@@ -73,13 +73,13 @@ echo "-----------------------------"\n\
 chown -R appuser:appgroup /app /data\n\
 umask $UMASK\n\
 \n\
-exec su-exec appuser python /app/app.py\n\
+exec gosu appuser python /app/app.py\n\
 ' > /usr/local/bin/entrypoint.sh && \
     chmod +x /usr/local/bin/entrypoint.sh
 
-# Install su-exec for dropping privileges
+# Install gosu for dropping privileges
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends su-exec && \
+    apt-get install -y --no-install-recommends gosu && \
     rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
