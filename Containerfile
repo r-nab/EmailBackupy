@@ -21,13 +21,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create default directories for mounting
-RUN mkdir -p /data/eml /data/attachments
+RUN mkdir -p /data/eml /data/attachments /app/configs
 
 # Copy application code
 COPY . .
 
 # Set default config path and data directories
-ENV CONFIG_PATH=/app/config.yaml
+ENV CONFIG_PATH=/app/configs/config.yaml
 ENV EML_DIR=/data/eml
 ENV ATTACHMENTS_DIR=/data/attachments
 
