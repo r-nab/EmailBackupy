@@ -9,8 +9,12 @@ import requests
 import logging
 from datetime import datetime, timedelta
 from email.header import decode_header
-from threading import Lock
+from threading import Lock, Thread
 import re
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from contextlib import asynccontextmanager
 
 account_locks = {}
 
@@ -41,8 +45,12 @@ def sanitize_filename(text, max_length=64):
             sanitized = sanitized[:max_length]
     return sanitized
 
+CONFIG_PATH = "/app/configs/config.yaml"
+app = FastAPI()
+templates = Jinja2Templates(directory="templates")
+
 # Load config
-def load_config(path="/app/configs/config.yaml"):
+def load_config(path=CONFIG_PATH):
     logging.info(f"Loading config from {path}...")
     with open(path, 'r') as f:
         config = yaml.safe_load(f)
@@ -217,7 +225,55 @@ def run_schedule(config):
         schedule.run_pending()
         time.sleep(10)
 
+def background_scheduler():
+    while True:
+        config = load_config(CONFIG_PATH)
+        schedule_minutes = config.get("schedule_minutes", 30)
+        for acct in config['accounts']:
+            process_emails(acct, config)
+        time.sleep(schedule_minutes * 60)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    thread = Thread(target=background_scheduler, daemon=True)
+    thread.start()
+    yield
+    # No cleanup needed
+
+app = FastAPI(lifespan=lifespan)
+
+@app.get("/", response_class=HTMLResponse)
+def read_config(request: Request):
+    with open(CONFIG_PATH, "r") as f:
+        config_text = f.read()
+    return templates.TemplateResponse("editor.html", {"request": request, "config_text": config_text})
+
+@app.post("/save", response_class=RedirectResponse)
+def save_config(request: Request, config_text: str = Form(...)):
+    with open(CONFIG_PATH, "w") as f:
+        f.write(config_text)
+    return RedirectResponse("/", status_code=303)
+
 if __name__ == "__main__":
-    logging.info("Starting email downloader...")
-    config = load_config()
-    run_schedule(config)
+    import uvicorn
+    if not os.path.exists("templates"):
+        os.makedirs("templates")
+    template_path = os.path.join("templates", "editor.html")
+    if not os.path.exists(template_path):
+        with open(template_path, "w") as f:
+            f.write("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Config</title>
+</head>
+<body>
+    <h1>Edit config.yaml</h1>
+    <form method=\"post\" action=\"/save\">
+        <textarea name=\"config_text\" rows=\"30\" cols=\"100\">{{ config_text }}</textarea><br>
+        <button type=\"submit\">Save</button>
+    </form>
+</body>
+</html>
+""")
+    uvicorn.run(app, host="0.0.0.0", port=8004)

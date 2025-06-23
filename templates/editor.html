@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EmailBackupy - Config Editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            background: #c4c4c4;
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            min-height: 100vh;
+        }
+        .center-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .editor-box {
+            background: #f5f5f5;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 2rem 2.5rem 1.5rem 2.5rem;
+            max-width: 800px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        h1 {
+            color: #2d3a4a;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            font-size: 2.2rem;
+            letter-spacing: 1px;
+        }
+        .site-title {
+            color: #2d3a4a;
+            font-weight: bold;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        #monaco-editor {
+            width: 100%;
+            flex: 1 1 auto;
+            height: 60vh;
+            min-height: 350px;
+            max-height: 70vh;
+            border-radius: 8px;
+            margin-bottom: 1.2rem;
+            background: #eaeaea;
+            overflow: hidden;
+        }
+        @media (max-width: 600px) {
+            .editor-box {
+                padding: 1rem 0.5rem 1rem 0.5rem;
+                min-height: 80vh;
+            }
+            #monaco-editor {
+                height: calc(100vh - 160px);
+                min-height: 180px;
+                max-height: none;
+            }
+        }
+        .save-btn-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        button[type="submit"] {
+            background: #6a7ba2;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.7rem 2.2rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            transition: background 0.2s;
+            margin: 0 auto;
+            display: block;
+        }
+        button[type="submit"]:hover {
+            background: #4a5a7a;
+        }
+    </style>
+    <!-- Monaco Editor loader -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+</head>
+<body>
+    <div class="center-container">
+        <div class="site-title">EmailBackupy</div>
+        <div class="editor-box">
+            <div style="text-align:center; margin-bottom:1.5rem; font-size:1rem; font-style:italic; color:#4a5a7a; letter-spacing:0.5px;">edit config.yaml</div>
+            <form method="post" action="/save" id="configForm" style="display:flex; flex-direction:column; height:100%; min-height:0;">
+                <div id="monaco-editor" style="flex:1 1 auto;"></div>
+                <textarea name="config_text" id="config_text" style="display:none">{{ config_text }}</textarea>
+                <div class="save-btn-row">
+                  <button type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        // Monaco Editor loader config
+        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+        window.MonacoEnvironment = { getWorkerUrl: function(workerId, label) {
+            return `data:text/javascript;charset=utf-8,` + encodeURIComponent(`importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/base/worker/workerMain.js');`);
+        }};
+        require(["vs/editor/editor.main"], function () {
+            var initialValue = document.getElementById('config_text').value;
+            var editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                value: initialValue,
+                language: 'yaml',
+                theme: 'vs-dark',
+                fontSize: 15,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                automaticLayout: true,
+            });
+            // Sync editor content to textarea before submit
+            document.getElementById('configForm').addEventListener('submit', function() {
+                document.getElementById('config_text').value = editor.getValue();
+            });
+        });
+    </script>
+</body>
+</html>

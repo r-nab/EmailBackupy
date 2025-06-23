@@ -30,6 +30,12 @@ RUN mkdir -p /data/eml /data/attachments /app/configs
 
 # Copy application code
 COPY . .
+# Ensure config.yaml is in /app/configs/config.yaml, fallback to test.config.yaml if not found
+RUN if [ -f ./config.yaml ]; then \
+      cp ./config.yaml /app/configs/config.yaml; \
+    elif [ -f ./test.config.yaml ]; then \
+      cp ./test.config.yaml /app/configs/config.yaml; \
+    fi
 
 # Set default config path and data directories
 ENV CONFIG_PATH=/app/configs/config.yaml
@@ -50,32 +56,33 @@ RUN groupadd -g ${PUID} appgroup && \
     chown -R appuser:appgroup /app /data
 
 # Create entrypoint script for user modification
-RUN echo '#!/bin/sh\n\
-PUID=${PUID:-99}\n\
-PGID=${PGID:-100}\n\
-UMASK=${UMASK:-000}\n\
-\n\
-if [ ! $(getent group appgroup) ]; then\n\
-    groupadd -g $PGID appgroup\n\
-fi\n\
-\n\
-if [ ! $(getent passwd appuser) ]; then\n\
-    useradd -u $PUID -g appgroup -m appuser\n\
-fi\n\
-\n\
-echo "-----------------------------"\n\
-echo "GID/UID"\n\
-echo "-----------------------------"\n\
-echo "User uid:    $(id -u appuser)"\n\
-echo "User gid:    $(id -g appgroup)"\n\
-echo "-----------------------------"\n\
-\n\
-chown -R appuser:appgroup /app /data\n\
-umask $UMASK\n\
-\n\
-exec gosu appuser python /app/app.py\n\
-' > /usr/local/bin/entrypoint.sh && \
-    chmod +x /usr/local/bin/entrypoint.sh
+RUN cat <<'EOF' > /usr/local/bin/entrypoint.sh
+#!/bin/sh
+PUID=${PUID:-99}
+PGID=${PGID:-100}
+UMASK=${UMASK:-000}
+
+if [ ! $(getent group appgroup) ]; then
+    groupadd -g $PGID appgroup
+fi
+
+if [ ! $(getent passwd appuser) ]; then
+    useradd -u $PUID -g appgroup -m appuser
+fi
+
+echo "-----------------------------"
+echo "GID/UID"
+echo "-----------------------------"
+echo "User uid:    $(id -u appuser)"
+echo "User gid:    $(id -g appgroup)"
+echo "-----------------------------"
+
+chown -R appuser:appgroup /app /data
+umask $UMASK
+
+exec gosu appuser uvicorn app:app --host 0.0.0.0 --port 8004
+EOF
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Install gosu for dropping privileges
 RUN apt-get update && \
@@ -85,4 +92,4 @@ RUN apt-get update && \
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Run script
-CMD ["python", "app.py"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8004"]
